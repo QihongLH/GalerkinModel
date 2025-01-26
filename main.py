@@ -128,7 +128,7 @@ def main(INPUTS):
 
     # Sparsify matrix of coefficients
     if flag_sparsify and flag_integration == 'matrix':
-        GPcoef['Chi'] = galerkin.sparsify_coeffs(PODr['Sigma'], PODr['Psi'], PODr['dPsi'], GPcoef['Chi'], sparsify_tol)
+        GPcoef['Chi'], GPcoef['Chi_n'] = galerkin.sparsify_coeffs(PODr['Sigma'], PODr['Psi'], PODr['dPsi'], GPcoef['Chi'], sparsify_tol)
         logger.debug("Thresholded matrix of coefficients...")
 
     #%% IV. INTEGRATION

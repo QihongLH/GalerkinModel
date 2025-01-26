@@ -138,7 +138,7 @@ def sparsify_coeffs(Sigmaf, Psif, dPsif, Chi, tol):
     Chi_n[np.where(np.abs(Chi_n) < tol)] = 0
     Chi[np.where(Chi_n == 0)] = 0
 
-    return Chi
+    return Chi, Chi_n
 
 def linear_viscous(grid, Phif, Phi0):
     """
