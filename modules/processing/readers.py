@@ -63,7 +63,7 @@ def save_results(result, flag_save, flag_flow, Re, value_truncation, flag_pressu
     # If non-truncated POD wants to be saved, write in same directory of flow type
     if flag_save == 'POD' or flag_save == 'stats':
         path = os.path.join(subdir_path, flag_save)
-    if flag_save == 'test_GP' or flag_save == 'test_interp':
+    elif flag_save == 'test_GP' or flag_save == 'test_interp':
         path = os.path.join(subsubdir_path, flag_save+'_ts_'+str(ts_test))
     else:
         path = os.path.join(subsubdir_path, flag_save)
