@@ -75,7 +75,7 @@ def create_train_set(grid, flow, flag_acceleration, flag_resolution, flag_separa
             it = np.sort(random.sample(range(nt), nt_NTR))
         elif flag_separation == 'regular':
             # Undersample NTR regularly
-            it = np.arange(0, nt + 1, np.ceil(ts / Dt)).astype(int)
+            it = np.arange(0, nt, int(ts / Dt)).astype(int)
 
         train['t'] = train['t'][it]
         for i in vars:
@@ -131,14 +131,15 @@ def create_test_set(flow, Dm, stds, flag_acceleration, flag_resolution, Dt=0, ts
     vars = ['Ddt', 'dDdt']
     if flag_resolution == 'TR':
         test_TR = test.copy()
-        Dt = test['t'][1] - test['t'][0]
+        if Dt == 0:
+            Dt = test['t'][1] - test['t'][0]
         nt = len(test['t'])
 
         test_NTR = test.copy()
         test_NTR['Dt'] = Dt
 
         # Undersample NTR regularly
-        it = np.arange(0, nt + 1, np.ceil(ts / Dt)).astype(int)
+        it = np.arange(0, nt, int(ts / Dt)).astype(int)
         test_NTR['t'] = test_NTR['t'][it]
         for i in vars:
             if type(test_NTR[i]) == type(np.array([])):
