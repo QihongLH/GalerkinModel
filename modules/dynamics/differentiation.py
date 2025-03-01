@@ -1,6 +1,75 @@
 # PACKAGES
 import numpy as np
 
+def diff_2nd(grid,D):
+    """
+    2nd order differentiation in space
+
+    :param grid: dictionary containing X, Y grids
+    :param D: 2D snapshot matrix (N_v, N_t)
+    :return: 2nd order gradient of D (Dxx, Dyy, Dxy)
+    """
+
+    # Parameters and initialization
+    X = grid['X']
+    Y = grid['Y']
+
+    N_y, N_x = np.shape(X)
+    N_t = np.shape(D)[1]
+
+    dx = np.abs(X[0, 1] - X[0, 0])
+    dy = np.abs(Y[0, 0] - Y[1, 0])
+
+    U = np.reshape(D[0:N_x * N_y,:], (N_y, N_x, N_t), order='F')
+    V = np.reshape(D[N_x * N_y:2 * N_x * N_y, :], (N_y, N_x, N_t), order='F')
+
+    Uxx, Uyy, Uxy, Vxx, Vyy, Vxy = np.zeros((6, N_y, N_x, N_t))
+
+    # Gradients
+    Uxx[:, 1:-1, :] = (U[:, 2:, :] - 2 * U[:, 1:-1, :] + U[:, 0:-2, :]) / dx ** 2
+    Uxx[:, 0, :] = (2 * U[:, 0, :] - 5 * U[:, 1, :] + 4 * U[:, 2, :] - U[:, 3, :]) / dx ** 3
+    Uxx[:, -1, :] = (2 * U[:, -1, :] - 5 * U[:, -2, :] + 4 * U[:, -3, :] - U[:, -4, :]) / dx ** 3
+
+    Uyy[1:-1, :, :] = (U[2:, :, :] - 2 * U[1:-1, :, :] + U[0:-2, :, :]) / dy ** 2
+    Uyy[0, :, :] = (2 * U[0, :, :] - 5 * U[1, :, :] + 4 * U[2, :, :] - U[3, :, :]) / dy ** 3
+    Uyy[-1, :, :] = (2 * U[-1, :, :] - 5 * U[-2, :, :] + 4 * U[-3, :, :] - U[-4, :, :]) / dy ** 3
+
+    Uxy[1:-1, 1:-1, :] = (U[2:, 2:, :] - U[0:-2, 2:, :] - U[2:, 0:-2, :] + U[0:-2, 0:-2, :]) / (4 * dx * dy)
+    Uxy[0, 1:-1, :] = (U[1, 2:, :] - U[0, 2:, :] - U[1, 0:-2, :] + U[0, 0:-2, :]) / (2 * dx * dy)
+    Uxy[-1, 1:-1, :] = (U[-1, 2:, :] - U[-2, 2:, :] - U[-1, 0:-2, :] + U[-2, 0:-2, :]) / (2 * dx * dy)
+    Uxy[1:-1, 0, :] = (U[2, 0, :] - U[0:-2, 0, :] - U[2, 1, :] + U[0:-2, 1, :]) / (2 * dx * dy)
+    Uxy[1:-1, -1, :] = (U[2, -1, :] - U[0:-2, -1, :] - U[2, -2, :] + U[0:-2, -2, :]) / (2 * dx * dy)
+
+    Vxx[:, 1:-1, :] = (V[:, 2:, :] - 2 * V[:, 1:-1, :] + V[:, 0:-2, :]) / dx ** 2
+    Vxx[:, 0, :] = (2 * V[:, 0, :] - 5 * V[:, 1, :] + 4 * V[:, 2, :] - V[:, 3, :]) / dx ** 3
+    Vxx[:, -1, :] = (2 * V[:, -1, :] - 5 * V[:, -2, :] + 4 * V[:, -3, :] - V[:, -4, :]) / dx ** 3
+
+    Vyy[1:-1, :, :] = (V[2:, :, :] - 2 * V[1:-1, :, :] + V[0:-2, :, :]) / dy ** 2
+    Vyy[0, :, :] = (2 * V[0, :, :] - 5 * V[1, :, :] + 4 * V[2, :, :] - V[3, :, :]) / dy ** 3
+    Vyy[-1, :, :] = (2 * V[-1, :, :] - 5 * V[-2, :, :] + 4 * V[-3, :, :] - V[-4, :, :]) / dy ** 3
+
+    Vxy[1:-1, 1:-1, :] = (V[2:, 2:, :] - V[0:-2, 2:, :] - V[2:, 0:-2, :] + V[0:-2, 0:-2, :]) / (4 * dx * dy)
+    Vxy[0, 1:-1, :] = (V[1, 2:, :] - V[0, 2:, :] - V[1, 0:-2, :] + V[0, 0:-2, :]) / (2 * dx * dy)
+    Vxy[-1, 1:-1, :] = (V[-1, 2:, :] - V[-2, 2:, :] - V[-1, 0:-2, :] + V[-2, 0:-2, :]) / (2 * dx * dy)
+    Vxy[1:-1, 0, :] = (V[2, 0, :] - V[0:-2, 0, :] - V[2, 1, :] + V[0:-2, 1, :]) / (2 * dx * dy)
+    Vxy[1:-1, -1, :] = (V[2, -1, :] - V[0:-2, -1, :] - V[2, -2, :] + V[0:-2, -2, :]) / (2 * dx * dy)
+
+    # Set to null boundary regions
+    imask = np.where(grid['B'] == 1)
+    Uxx[imask[0], imask[1], :] = 0
+    Uyy[imask[0], imask[1], :] = 0
+    Uxy[imask[0], imask[1], :] = 0
+    Vxx[imask[0], imask[1], :] = 0
+    Vyy[imask[0], imask[1], :] = 0
+    Vxy[imask[0], imask[1], :] = 0
+
+    # Reshape
+    Dxx = np.concatenate((np.reshape(Uxx,(N_x * N_y, N_t),order='F'),np.reshape(Vxx,(N_x * N_y, N_t),order='F')),axis=0)
+    Dyy = np.concatenate((np.reshape(Uyy,(N_x * N_y, N_t),order='F'),np.reshape(Vyy,(N_x * N_y, N_t),order='F')),axis=0)
+    Dxy = np.concatenate((np.reshape(Uxy,(N_x * N_y, N_t),order='F'),np.reshape(Vxy,(N_x * N_y, N_t),order='F')),axis=0)
+
+    return Dxx, Dyy, Dxy
+
 def diff_1st_2D(grid,D):
     """
     1st order differentiation in space
