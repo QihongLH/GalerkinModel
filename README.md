@@ -40,7 +40,7 @@ Direct Numerical Simulation of the wake of a Fluidic Pinball at
 *Re=130* and a dataset from Particle Image Velocimetry measurements of a 
 turbulent jet flow at *Re=3300* in
 
-* [REFERENCE TO JOURNAL ARTICLE]()
+* [TBD]()
 
 ### Documentation
 
