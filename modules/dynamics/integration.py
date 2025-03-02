@@ -259,8 +259,13 @@ def get_TH(grid, Ddti, D_mean, ti, Dt):
     Y = grid['Y']
     M = grid['B']
 
+    M[M==1] = 0
+    M[np.isnan(M)] = 1
+
     m = np.shape(X)[0]
     n = np.shape(X)[1]
+    Y_flat = Y.reshape(-1,order='F')
+    X_flat = X.reshape(-1, order='F')
 
     xmin = np.min(X)
     xmax = np.max(X)
@@ -277,7 +282,7 @@ def get_TH(grid, Ddti, D_mean, ti, Dt):
     # Start propagation/integration process
     c = 0
     t = []
-    U, V = np.empty((2, m, n, 1))
+    U, V = np.zeros((2, m, n, 1))
     for i in range(ni - 1):
         ts = ti[i + 1] - ti[i]
         t_sub = np.arange(ti[i], ti[i + 1] + Dt, Dt)  # Temporal vector with time resolution in between ICs
@@ -314,39 +319,37 @@ def get_TH(grid, Ddti, D_mean, ti, Dt):
             Y3[Y3 < ymin] = ymin
             Y3[Y3 > ymax] = ymax
 
+            X1_flat = X1.reshape(-1, order='F')
+            X3_flat = X3.reshape(-1, order='F')
+
             # Interpolate velocity at propagated points at time instants i or i+1. Maintain region of mask as available time instants
-            U1 = spi.RegularGridInterpolator((X[0, :].T, np.flip(Y[:, 0])), Ui[:, :, i], method='cubic', fill_value=0)(
-                X1[0, :].T, np.flip(Y[:, 0]))
-            U1 = U1 + np.dot((Ui[:, :, i] - U1), M)
+            U1 = (spi.RegularGridInterpolator((np.flip(Y[:, 0]), X[0, :]), Ui[:, :, i], method='cubic', fill_value=0)
+                  (np.array([Y_flat, X1_flat]).T)).reshape(m, n, order='F')
+            U1 = U1 + np.multiply((Ui[:, :, i] - U1), M)
 
-            U3 = spi.RegularGridInterpolator((X[0, :].T, np.flip(Y[:, 0])), Ui[:, :, i + 1], method='cubic',
-                                             fill_value=0)(X3[0, :].T, np.flip(Y[:, 0]))
-            U3 = U3 + np.dot((Ui[:, :, i + 1] - U3), M)
+            U3 = spi.RegularGridInterpolator((np.flip(Y[:, 0]), X[0, :]), Ui[:, :, i + 1], method='cubic',
+                                             fill_value=0)(np.array([Y_flat, X3_flat]).T).reshape(m, n, order='F')
+            U3 = U3 + np.multiply((Ui[:, :, i + 1] - U3), M)
 
-            V1 = spi.RegularGridInterpolator((X[0, :].T, np.flip(Y[:, 0])), Vi[:, :, i], method='cubic', fill_value=0)(
-                X1[0, :].T, np.flip(Y[:, 0]))
-            V1 = V1 + np.dot((Vi[:, :, i] - V1), M)
+            V1 = (spi.RegularGridInterpolator((np.flip(Y[:, 0]), X[0, :]), Vi[:, :, i], method='cubic', fill_value=0)
+                  (np.array([Y_flat, X1_flat]).T)).reshape(m, n, order='F')
+            V1 = V1 + np.multiply((Vi[:, :, i] - V1), M)
 
-            V3 = spi.RegularGridInterpolator((X[0, :].T, np.flip(Y[:, 0])), Vi[:, :, i + 1], method='cubic',
-                                             fill_value=0)(X3[0, :].T, np.flip(Y[:, 0]))
-            V3 = V3 + np.dot((Vi[:, :, i + 1] - V3), M)
+            V3 = (spi.RegularGridInterpolator((np.flip(Y[:, 0]), X[0, :]), Vi[:, :, i + 1], method='cubic', fill_value=0)
+                  (np.array([Y_flat, X3_flat]).T).reshape(m, n, order='F'))
+            V3 = V3 + np.multiply((Vi[:, :, i + 1] - V3), M)
 
             # Weighted forward and backward predictions
-            U = np.concatenate((U, (t_sub[-1] - t_sub[j]) / ts * U1 + (t_sub[j] - t_sub[0]) / ts * U3), axis=2)
-            V = np.concatenate((V, (t_sub[-1] - t_sub[j]) / ts * V1 + (t_sub[j] - t_sub[0]) / ts * V3), axis=2)
+            U = np.concatenate((U, ((t_sub[-1] - t_sub[j]) / ts * U1 + (t_sub[j] - t_sub[0]) / ts * U3).reshape(m, n, 1)), axis=2)
+            V = np.concatenate((V, ((t_sub[-1] - t_sub[j]) / ts * V1 + (t_sub[j] - t_sub[0]) / ts * V3).reshape(m, n, 1)), axis=2)
 
-            if c == 1:
-                TH = {'U': U.reshape((m * n, 1)), 'V': V.reshape((m * n, 1)), 't': t_sub[j].reshape(1, 1)}
-            else:
-                TH['U'] = np.append(TH['U'], U.reshape((m * n, 1)), axis=1)
-                TH['V'] = np.append(TH['V'], V.reshape((m * n, 1)), axis=1)
-                TH['t'] = np.append(TH['t'], t_sub[j].reshape(1, 1), axis=1)
         t.append(t_sub)
+        logger.debug("Completed advection model of " + str(i + 1) + "/" + str(ni - 1) + " time frames")
 
     # Final values
     nt = np.shape(U)[2]
     t = np.array(t).reshape(-1, 1)
-    U, V = np.reshape(U, (m * n, nt), order='F'), np.reshape(V, (m * n, nt), order='F')
+    U, V = np.reshape(U[:,:,1:], (m * n, nt), order='F'), np.reshape(V[:,:,1:], (m * n, nt), order='F')
     Ddt = np.concatenate((U, V), axis=0) - D_mean
     test_TH = {'t': t, 'Ddt': Ddt}
 
