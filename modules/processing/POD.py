@@ -14,13 +14,13 @@ def get_POD(D, dDdt=[]):
     """
 
     # POD
-    Phi, Sigma, Psi = np.linalg.svd(D, full_matrices=False)
+    Phi, Sigma, PsiT = np.linalg.svd(D, full_matrices=False)
 
-    POD = {'Phi': Phi, 'Sigma': Sigma, 'Psi': Psi, 'dPsi':[]}
+    POD = {'Phi': Phi, 'Sigma': Sigma, 'Psi': PsiT.T, 'dPsi':[]}
 
     if type(dDdt) == type(np.array([])):
-        dPsi = np.dot(np.dot(np.linalg.inv(np.diag(Sigma)), Phi.T), dDdt)
-        POD['dPsi'] = dPsi
+        dPsiT = np.linalg.inv(np.diag(Sigma)) @ Phi.T @ dDdt
+        POD['dPsi'] = dPsiT.T
 
     return POD
 
@@ -38,7 +38,7 @@ def truncate_POD(POD, r_method, r_threshold):
     # PARAMETERS
     Phi, Sigma, Psi = POD['Phi'], POD['Sigma'], POD['Psi']
     dPsi = POD['dPsi']
-    nt = Psi.shape[1]
+    nt = Psi.shape[0]
 
     # TRUNCATION METHOD
     if r_method == 'energy':
@@ -56,12 +56,12 @@ def truncate_POD(POD, r_method, r_threshold):
     # Truncate basis (note that nr is number of modes)
     Phir = Phi[:, 0:nr]
     Sigmar = Sigma[0:nr]
-    Psir = Psi[0:nr, :]
+    Psir = Psi[:, 0:nr]
 
     PODr = {'Phi': Phir, 'Sigma': Sigmar, 'Psi': Psir, 'dPsi': []}
 
     if type(dPsi) == type(np.array([])):
-        dPsir = dPsi[0:nr, :]
+        dPsir = dPsi[:, 0:nr]
         PODr['dPsi'] = dPsir
 
     Er = np.sum(Sigma[:nr] ** 2) / np.sum(Sigma ** 2)
