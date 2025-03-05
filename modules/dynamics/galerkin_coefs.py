@@ -15,7 +15,7 @@ def galerkin_coefs(grid, Phif, Phi0, Sigmaf, Psif, Re, flag_pressure, flag_integ
     :param Phif: set of POD spatial modes of training set fluctuations, spatial points x modes
     :param Phi0: POD spatial mode of training set mean component (a0 = 1), spatial points x modes
     :param Sigmaf: set of POD singular values of training set fluctuations, modes x modes
-    :param Psif: set of POD temporal modes of training set fluctuations, modes x time instants
+    :param Psif: set of POD temporal modes of training set fluctuations, time instants x modes
     :param DP: snapshot matrix of pressure gradient, spatial points x time instants
     :param Re: Reynolds number of flow
     :param flag_pressure: flag indicating if no pressure coefficients are to be obtained ('none'), or else following the
@@ -73,9 +73,9 @@ def galerkin_coefs(grid, Phif, Phi0, Sigmaf, Psif, Re, flag_pressure, flag_integ
 
     elif flag_integration == 'matrix':
         # Get non-normalized temporal modes and library of functions up to 2nd order polynomials
-        af = np.dot(np.diag(Sigmaf), Psif)
+        afT = np.dot(np.diag(Sigmaf), Psif.T)
         nr = np.shape(Phif)[1]
-        Theta = system_eqs.pool_polynomials(af.T)
+        Theta = system_eqs.pool_polynomials(afT.T)
 
         # Parameters and initialization of matrix coefficients
         nf = np.shape(Theta)[1]
@@ -111,8 +111,8 @@ def sparsify_coeffs(Sigmaf, Psif, dPsif, Chi, tol):
     Sets to null relative values of matrix coefficients below a certain tolerance
 
     :param Sigmaf: set of POD singular values of training set fluctuations, modes x modes
-    :param Psif: set of POD temporal modes of training set fluctuations, modes x time instants
-    :param Psif: set of POD temporal mode derivatives of training set fluctuations, modes x time instants
+    :param Psif: set of POD temporal modes of training set fluctuations, time instants x modes
+    :param Psif: set of POD temporal mode derivatives of training set fluctuations, time instants x modes
     :param Chi: matrix of coefficients, function x modes
     :param tol: tolerance thresholding value
 
@@ -123,15 +123,15 @@ def sparsify_coeffs(Sigmaf, Psif, dPsif, Chi, tol):
         raise Exception("No derivative of temporal modes available")
 
     # Get non-normalized temporal modes and derivatives
-    af = np.dot(np.diag(Sigmaf), Psif)
-    daf = np.dot(np.diag(Sigmaf), dPsif)
+    afT = np.dot(np.diag(Sigmaf), Psif.T)
+    dafT = np.dot(np.diag(Sigmaf), dPsif.T)
 
     # Library of functions up to 2nd order polynomials
-    Theta = system_eqs.pool_polynomials(af.T)
+    Theta = system_eqs.pool_polynomials(afT.T)
 
     # Norm of library functions & derivatives
     normTheta = np.linalg.norm(Theta, axis=0)
-    normdX = np.linalg.norm(daf.T, axis=0)
+    normdX = np.linalg.norm(dafT.T, axis=0)
 
     # Normalize matrix of coefficients and threshold
     Chi_n = (Chi.T * normTheta).T / normdX
@@ -214,7 +214,7 @@ def quadratic_pressure(Phif, Phi0, Sigmaf, Psif, DP):
     :param Phif: set of POD spatial modes of training set fluctuations, spatial points x modes
     :param Phi0: POD spatial mode of training set mean component (a0 = 1), spatial points x modes
     :param Sigmaf: set of POD singular values of training set fluctuations, modes x modes
-    :param Psif: set of POD temporal modes of training set fluctuations, modes x time instants
+    :param Psif: set of POD temporal modes of training set fluctuations, time instants x modes
     :param DP: snapshot matrix of pressure gradient, spatial points x time instants
 
     :return Qp: quadratic pressure coefficients, modes + 1 x modes + 1 x modes + 1
@@ -224,15 +224,15 @@ def quadratic_pressure(Phif, Phi0, Sigmaf, Psif, DP):
     Phi = np.concatenate((Phi0, Phif), axis=1)
 
     # Complete set of temporal modes and singular values
-    a0 = np.ones((1,np.shape(Psif)[1]))
-    Psi = np.concatenate((a0/np.linalg.norm(a0), Psif), axis=0)
+    a0 = np.ones((np.shape(Psif)[0], 1))
+    Psi = np.concatenate((a0/np.linalg.norm(a0), Psif), axis=1)
     Sigma = np.concatenate(([np.linalg.norm(a0)], Sigmaf))
 
     # Parameters
     nv, nr = np.shape(Phif)
 
     # Spatial modes associated to pressure gradient
-    DPi = np.dot(DP, np.dot(Psi.T, np.linalg.inv(np.diag(Sigma))))
+    DPi = np.dot(DP, np.dot(Psi, np.linalg.inv(np.diag(Sigma))))
     DPj_plus = DPi[:,0].reshape((nv,1)) + DPi
     DPj_minus = DPi[:,0].reshape((nv,1)) - DPi
 
@@ -270,7 +270,7 @@ def linear_pressure(Phif, Phi0, Sigmaf, Psif, DP):
     :param Phif: set of POD spatial modes of training set fluctuations, spatial points x modes
     :param Phi0: POD spatial mode of training set mean component (a0 = 1), spatial points x modes
     :param Sigmaf: set of POD singular values of training set fluctuations, modes x modes
-    :param Psif: set of POD temporal modes of training set fluctuations, modes x time instants
+    :param Psif: set of POD temporal modes of training set fluctuations, time instants x modes
     :param DP: snapshot matrix of pressure gradient, spatial points x time instants
 
     :return Lv: linear pressure coefficients, modes + 1 x modes + 1
@@ -280,10 +280,10 @@ def linear_pressure(Phif, Phi0, Sigmaf, Psif, DP):
     Phi = np.concatenate((Phi0, Phif), axis=1)
 
     # Complete set of temporal modes and singular values
-    a0 = np.ones((1, np.shape(Psif)[1]))
-    Psi = np.concatenate((a0 / np.linalg.norm(a0), Psif), axis=0)
+    a0 = np.ones((np.shape(Psif)[0], 1))
+    Psi = np.concatenate((a0 / np.linalg.norm(a0), Psif), axis=1)
     Sigma = np.concatenate(([np.linalg.norm(a0)], Sigmaf))
-    A = np.dot(np.diag(Sigma), Psi).T
+    A = np.dot(np.diag(Sigma), Psi.T).T
 
     # Solve linear system of equations
     LHS = np.dot(-Phi.T, DP).T
